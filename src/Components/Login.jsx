@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase-config.js';
+// Corrected import path. This assumes firebase-config.js is directly inside the 'src' folder.
+import { auth } from '../firebase-config.js'; 
 
 const Login = ({ onSignIn }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -27,20 +28,33 @@ const Login = ({ onSignIn }) => {
         onSignIn(); // Call the parent function to change the UI state
       }
     } catch (err) {
-      // Handle Firebase authentication errors
-      let errorMessage = "An unknown error occurred.";
-      if (err.code === "auth/email-already-in-use") {
-        errorMessage = "Email address is already in use.";
-      } else if (err.code === "auth/invalid-email") {
-        errorMessage = "Invalid email address.";
-      } else if (err.code === "auth/user-not-found") {
-        errorMessage = "No account found with this email.";
-      } else if (err.code === "auth/wrong-password") {
-        errorMessage = "Incorrect password.";
-      } else if (err.code === "auth/weak-password") {
-        errorMessage = "Password must be at least 6 characters long.";
+      // Log the full error object for debugging
+      console.log("Firebase Auth Error:", err); 
+      
+      // Handle Firebase authentication errors with specific messages
+      switch(err.code) {
+        case "auth/email-already-in-use":
+          setError("This email address is already in use. Please sign in or use a different email.");
+          break;
+        case "auth/invalid-email":
+          setError("The email address is not valid.");
+          break;
+        case "auth/invalid-credential":
+          setError("No account found with this email or incorrect password. Please sign up or try again.");
+          break;
+        case "auth/wrong-password":
+          setError("Incorrect password. Please try again.");
+          break;
+        case "auth/weak-password":
+          setError("Password must be at least 6 characters long.");
+          break;
+        case "auth/network-request-failed":
+          setError("Network error. Please check your internet connection.");
+          break;
+        default:
+          setError("An unknown error occurred. Please try again.");
+          break;
       }
-      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -53,7 +67,7 @@ const Login = ({ onSignIn }) => {
 
   return (
     <section className="h-full flex items-center justify-center">
-      <div className="flex min-h-full flex-col justify-center px-6 py-6 lg:px-8">
+      <div className="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
         <div className="sm:mx-auto sm:w-full sm:max-w-sm">
           <img
             src="/logo.png"

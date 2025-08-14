@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Login from './Components/Login.jsx';
+import Dashboard from './Components/Dashboard.jsx';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from './firebase-config.js'; // The import path has been corrected
 
 function App() {
+  document.documentElement.setAttribute('data-theme', "light");
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -38,21 +40,7 @@ function App() {
     <div className="font-sans antialiased text-gray-800">
       {user ? (
         // Render the main app dashboard if the user is signed in
-        <div>
-          <header className="bg-white shadow-md p-4 flex justify-between items-center">
-            <h1 className="text-xl font-bold">FitCheck Dashboard</h1>
-            <button onClick={handleSignOut} className="bg-red-500 text-white px-4 py-2 rounded-md hover:bg-red-600 transition duration-200">
-              Sign Out
-            </button>
-          </header>
-          <main className="container mx-auto p-4">
-            <h2 className="text-3xl font-semibold mb-4">Welcome back, {user.email}!</h2>
-            <div className="p-8 bg-white rounded-lg shadow-md">
-              <p>This is your personalized dashboard. You are now authenticated!</p>
-              {/* This is where your weather, calendar, and outfit components will go */}
-            </div>
-          </main>
-        </div>
+        <Dashboard user={user} onSignOut={handleSignOut}/>
       ) : (
         // Otherwise, render the Login page
         <Login onSignIn={() => {}} />
