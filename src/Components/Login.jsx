@@ -1,49 +1,48 @@
 // src/Components/Login.jsx
 
-import React, { useState } from 'react';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-// Corrected import path. This assumes firebase-config.js is directly inside the 'src' folder.
-import { auth } from '../firebase-config.js'; 
+import React, { useState } from "react";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
+import { auth } from "../firebase-config.js";
 
-const Login = ({ onSignIn }) => {
+const Login = ({ onSignIn, onGoogleSignIn }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     try {
       if (isLogin) {
-        // Sign in existing user with email and password
         await signInWithEmailAndPassword(auth, email, password);
-        onSignIn(); // Call the parent function to change the UI state
       } else {
-        // Create a new user with email and password
         await createUserWithEmailAndPassword(auth, email, password);
-        onSignIn(); // Call the parent function to change the UI state
       }
+      onSignIn();
     } catch (err) {
-      // Log the full error object for debugging
-      console.log("Firebase Auth Error:", err); 
-      
-      // Handle Firebase authentication errors with specific messages
-      switch(err.code) {
+      console.log("Firebase Auth Error:", err);
+      switch (err.code) {
         case "auth/email-already-in-use":
-          setError("This email address is already in use. Please sign in or use a different email.");
+          setError(
+            "This email address is already in use. Please sign in or use a different email."
+          );
           break;
         case "auth/invalid-email":
           setError("The email address is not valid.");
           break;
         case "auth/invalid-credential":
-          setError("No account found with this email or incorrect password. Please sign up or try again.");
-          break;
-        case "auth/wrong-password":
-          setError("Incorrect password. Please try again.");
+          setError(
+            "No account found with this email or incorrect password. Please sign up or try again."
+          );
           break;
         case "auth/weak-password":
           setError("Password must be at least 6 characters long.");
@@ -60,9 +59,30 @@ const Login = ({ onSignIn }) => {
     }
   };
 
+  const signInWithGoogle = async () => {
+    setError("");
+    setIsLoading(true);
+    const provider = new GoogleAuthProvider();
+    provider.addScope("https://www.googleapis.com/auth/calendar.readonly");
+
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      // Pass the Google access token to the parent component
+      onGoogleSignIn(credential.accessToken);
+    } catch (err) {
+      console.log("Google Sign-in Error:", err);
+      if (err.code !== "auth/popup-closed-by-user") {
+        setError("Failed to sign in with Google. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const toggleAuthMode = () => {
     setIsLogin(!isLogin);
-    setError(''); // Clear error message when switching modes
+    setError("");
   };
 
   return (
@@ -75,7 +95,7 @@ const Login = ({ onSignIn }) => {
             className="mx-auto h-50 w-auto"
           />
           <h2 className="text-center text-2xl/9 font-bold tracking-tight text-gray-900">
-            {isLogin ? 'Sign in to your account' : 'Create a new account'}
+            {isLogin ? "Sign in to your account" : "Create a new account"}
           </h2>
         </div>
 
@@ -136,9 +156,7 @@ const Login = ({ onSignIn }) => {
             </div>
 
             {error && (
-              <div className="text-red-600 text-sm text-center">
-                {error}
-              </div>
+              <div className="text-red-600 text-sm text-center">{error}</div>
             )}
 
             <div>
@@ -147,10 +165,27 @@ const Login = ({ onSignIn }) => {
                 disabled={isLoading}
                 className="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
               >
-                {isLoading ? 'Loading...' : isLogin ? 'Sign in' : 'Sign up'}
+                {isLoading ? "Loading..." : isLogin ? "Sign in" : "Sign up"}
               </button>
             </div>
           </form>
+
+          {/* Social Sign-in Section */}
+          <div className="mt-4">
+            <div className="divider">OR</div>
+
+            <button
+              onClick={signInWithGoogle}
+              disabled={isLoading}
+              className="flex w-full justify-center rounded-md bg-white px-3 py-1.5 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50"
+            >
+              <img
+                src="/icons/google-brands-solid-full.svg"
+                className="w-5 mr-4"
+              />
+              Sign in with Google
+            </button>
+          </div>
 
           <p className="mt-10 text-center text-sm text-gray-500">
             {isLogin ? "Not a member?" : "Already have an account?"}

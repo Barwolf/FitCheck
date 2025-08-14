@@ -1,5 +1,19 @@
-import React from "react";
 import { useState } from "react";
+
+const badgeColors = [
+  "badge-primary",
+  "badge-secondary",
+  "badge-accent",
+  "badge-info",
+  "badge-success",
+  "badge-warning",
+  "badge-error"
+]
+
+  const getRandomBadgeColor = () => {
+    const randomIndex = Math.floor(Math.random() * badgeColors.length);
+    return badgeColors[randomIndex];
+  };
 
 function Card({ item, onRemove }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -24,6 +38,12 @@ function Card({ item, onRemove }) {
           A card component has a figure, a body part, and inside body there are
           title and actions parts
         </p>
+        <div className="flex">
+        {item.tags.map((item) => (
+          <div className={`badge badge-soft ${getRandomBadgeColor()} m-1`}>{item}</div>
+        ))}
+        </div>
+
         <div className="card-actions justify-center mt-2">
           {/* Button to open the modal */}
           <button
