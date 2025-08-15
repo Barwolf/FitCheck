@@ -2,12 +2,14 @@
 
 import React, { useState } from "react";
 import {
+  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
 import { auth } from "../firebase-config.js";
+import { useAuth } from '../AuthContext';
 
 const Login = ({ onSignIn, onGoogleSignIn }) => {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,6 +17,7 @@ const Login = ({ onSignIn, onGoogleSignIn }) => {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const { setGoogleAccessToken } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,20 +63,19 @@ const Login = ({ onSignIn, onGoogleSignIn }) => {
   };
 
   const signInWithGoogle = async () => {
-    setError("");
     setIsLoading(true);
+    setError(null);
     const provider = new GoogleAuthProvider();
-    provider.addScope("https://www.googleapis.com/auth/calendar.readonly");
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
 
     try {
-      const result = await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(getAuth(), provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
-      // Pass the Google access token to the parent component
-      onGoogleSignIn(credential.accessToken);
+      setGoogleAccessToken(credential.accessToken);
     } catch (err) {
-      console.log("Google Sign-in Error:", err);
-      if (err.code !== "auth/popup-closed-by-user") {
-        setError("Failed to sign in with Google. Please try again.");
+      console.error('Google Sign-in Error:', err);
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError('Failed to sign in with Google. Please try again.');
       }
     } finally {
       setIsLoading(false);
