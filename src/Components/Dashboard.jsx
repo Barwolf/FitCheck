@@ -1,11 +1,28 @@
-// src/Components/Dashboard.jsx
-import React, { useState } from "react";
-import { getAuth } from "firebase/auth";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import React, { useState, useCallback } from "react";
 import Navbar from "./Navbar.jsx";
 import Connections from "./Connections.jsx";
 import Card from "./Card.jsx";
-import { useAuth } from '../AuthContext';
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { useAuth } from '../AuthContext.jsx';
+
+// Function to find the best matching item based on tags
+const findBestMatch = (items, eventTags) => {
+  let bestMatch = null;
+  let highestCount = 0;
+
+  items.forEach(item => {
+    if (!item.tags || item.tags.length === 0) return;
+
+    const matchCount = item.tags.filter(tag => eventTags.includes(tag)).length;
+
+    if (matchCount > highestCount) {
+      highestCount = matchCount;
+      bestMatch = item;
+    }
+  });
+
+  return bestMatch;
+};
 
 // Declaring 'items' as an array of objects with some sample data
 const initialItems = [
@@ -40,20 +57,33 @@ function Dashboard() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { user, googleAccessToken, handleSignOut } = useAuth();
   const [syncMessage, setSyncMessage] = useState(null);
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [suggestedOutfit, setSuggestedOutfit] = useState(null);
 
-    const handleSyncLillyGo = async () => {
-    if (!user) {
-      setSyncMessage("You must be signed in to sync.");
+  const handleRemoveItem = (itemId) => {
+    setItems(items.filter(item => item.id !== itemId));
+  };
+
+  const handleAddItem = (newItem) => {
+    const newId = items.length > 0 ? Math.max(...items.map(item => item.id)) + 1 : 1;
+    setItems([...items, { ...newItem, id: newId }]);
+    setIsModalOpen(false);
+  };
+  
+  // This function now sends a simplified payload to the Cloud Function
+  const handleSyncLillyGo = async () => {
+    if (!user || !suggestedOutfit) {
+      setSyncMessage("No suggested outfit available to sync.");
       return;
     }
 
-    setSyncMessage("Sending test command to LillyGo...");
+    setSyncMessage(`Syncing outfit "${suggestedOutfit.name}" to LillyGo...`);
 
     try {
       const functions = getFunctions();
       const syncLillyGoFunction = httpsCallable(functions, 'syncLillyGo');
       const response = await syncLillyGoFunction({ 
-        command: "test_message"
+        outfitName: suggestedOutfit.name
       });
 
       setSyncMessage(response.data.message);
@@ -64,41 +94,54 @@ function Dashboard() {
     }
   };
 
-  const handleRemoveItem = (itemId) => {
-    setItems(items.filter((item) => item.id !== itemId));
-  };
-
-  const handleAddItem = (newItem) => {
-    const newId =
-      items.length > 0 ? Math.max(...items.map((item) => item.id)) + 1 : 1;
-    setItems([...items, { ...newItem, id: newId }]);
-    setIsModalOpen(false);
-  };
+  const updateCalendarEvents = useCallback((events) => {
+    setCalendarEvents(events);
+    console.log(events);
+    console.log(suggestedOutfit);
+    if (events.length > 0) {
+      const firstEventDescription = events[0].description || "";
+      const eventTags = firstEventDescription.split(',').map(tag => tag.trim().toLowerCase());
+      const bestMatch = findBestMatch(items, eventTags);
+      setSuggestedOutfit(bestMatch);
+    } else {
+      setSuggestedOutfit(null);
+      setSyncMessage("No upcoming events found.");
+    }
+  }, [items]);
 
   return (
     <section className="m-5">
       <Navbar user={user} onSignOut={handleSignOut} />
-      <Connections googleAccessToken={googleAccessToken} />
-      <div className="mx-40 flex">
-        <h1 className="text-4xl font-bold m-5">Clothing Rack</h1>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="btn btn-primary mt-6"
-        >
-          Add clothing
-        </button>
-        <button className="btn btn-secondary mt-6 mx-2" onClick={handleSyncLillyGo}>
-        Sync to LillyGo
-      </button>
-      <div className="mt-8">
-        {syncMessage && <p>{syncMessage}</p>}
-      </div>
-
-      </div>
-      <section className="clothing-rack mx-50 mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-items-center">
-        {items.map((item) => (
-          <Card key={item.id} item={item} onRemove={handleRemoveItem} />
-        ))}
+      <Connections googleAccessToken={googleAccessToken} onUpdateEvents={updateCalendarEvents} />
+      <section className="clothing-rack mx-40">
+        <h1 className="text-4xl font-bold m-2 mb-10 mt-15">Clothing Rack</h1>
+        {suggestedOutfit && (
+          <div className="alert alert-success my-2">
+            <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>Suggested Outfit: {suggestedOutfit.name}</span>
+          </div>
+        )}
+        <div className="flex mb-4">
+          <button
+            className="btn btn-primary"
+            onClick={() => setIsModalOpen(true)}
+          >
+            Add clothing
+          </button>
+          <button
+            className="btn mx-2 btn-secondary"
+            onClick={handleSyncLillyGo}
+            disabled={!suggestedOutfit}
+          >
+            Sync to LillyGo
+          </button>
+          {syncMessage && <p className="text-center text-sm my-2">{syncMessage}</p>}
+        </div>
+        <div className=" grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 justify-items-center">
+          {items.map((item) => (
+            <Card key={item.id} item={item} onRemove={handleRemoveItem} />
+          ))}
+        </div>
       </section>
 
       <dialog
@@ -115,7 +158,7 @@ function Dashboard() {
               const newItem = {
                 name: form.name.value,
                 imageUrl: form.imageUrl.value,
-                tags: form.tags.value.split(",").map((tag) => tag.trim()),
+                tags: form.tags.value.split(',').map(tag => tag.trim()),
               };
               handleAddItem(newItem);
               form.reset();
@@ -175,4 +218,5 @@ function Dashboard() {
     </section>
   );
 }
+
 export default Dashboard;

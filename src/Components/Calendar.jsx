@@ -10,19 +10,18 @@ const badgeColors = [
   "badge-success",
   "badge-warning",
   "badge-error"
-]
+];
 
-  const getRandomBadgeColor = () => {
-    const randomIndex = Math.floor(Math.random() * badgeColors.length);
-    return badgeColors[randomIndex];
-  };
+const getRandomBadgeColor = () => {
+  const randomIndex = Math.floor(Math.random() * badgeColors.length);
+  return badgeColors[randomIndex];
+};
 
-
-function Calendar({ googleAccessToken }) {
-  const [events, setEvents] = useState([]);
+function Calendar({ googleAccessToken, onUpdateEvents }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [events, setEvents] = useState([]); // local state for display
 
   useEffect(() => {
     const auth = getAuth();
@@ -36,6 +35,7 @@ function Calendar({ googleAccessToken }) {
     const fetchCalendarEvents = async () => {
       if (!user || !googleAccessToken) {
         setLoading(false);
+        onUpdateEvents([]);
         return;
       }
 
@@ -62,20 +62,19 @@ function Calendar({ googleAccessToken }) {
           }
         );
 
-        // Log the events array for debugging
-        console.log("Fetched Events:", response.data.items);
+        onUpdateEvents(response.data.items);
+        setEvents(response.data.items); // Update local state for display
 
-        setEvents(response.data.items);
       } catch (err) {
         console.error("Failed to fetch calendar events:", err);
         setError("Failed to load calendar events. Please try again.");
+        onUpdateEvents([]);
       } finally {
         setLoading(false);
       }
     };
-
     fetchCalendarEvents();
-  }, [user, googleAccessToken]);
+  }, [user, googleAccessToken, onUpdateEvents]);
 
   if (!user) {
     return (
@@ -111,7 +110,7 @@ function Calendar({ googleAccessToken }) {
     );
   }
 
-  return (
+   return (
     <li className="list-row">
       <div>
         <img
